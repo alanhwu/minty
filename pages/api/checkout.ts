@@ -3,12 +3,8 @@ import { clusterApiUrl, Connection, Keypair, PublicKey } from "@solana/web3.js"
 import { getOrCreateAssociatedTokenAccount, createTransferCheckedInstruction, getMint } from "@solana/spl-token"
 import { GuestIdentityDriver, keypairIdentity, Metaplex } from "@metaplex-foundation/js"
 import base58 from 'bs58'
-// import Bundlr from '@bundlr-network/client'
-// Update these variables!
-// This is returned by nft-upload/upload.js
-// const METADATA_URI = "https://arweave.net/Yz2NasIQXB8FVc3a4BK-4mHvl-VU2kzTXiwm2GH0sF0"
-//let METADATA_URI =  "https://gateway.pinata.cloud/ipfs/QmZ7Si81sScaAbmCB8CeSCuZxzyidGGDeZVzaYiRq273na"
-// Devnet 'fake' USDC, you can get these tokens from https://spl-token-faucet.com/
+import { MetadataArgs, TokenProgramVersion, TokenStandard, PROGRAM_ID as BUBBLEGUM_PROGRAM_ID, createMintToCollectionV1Instruction } from "@metaplex-foundation/mpl-bubblegum"
+// Devnet USDC
 //const USDC_ADDRESS = new PublicKey("Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr")
 const USDC_ADDRESS = new PublicKey("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v");
 //const payerKey = process.env.SHOP_PRIVATE_KEY;
@@ -72,7 +68,10 @@ async function postImpl(account: PublicKey, uri : string): Promise<PostResponse>
   // The mint needs to sign the transaction, so we generate a new keypair for it
   const mintKeypair = Keypair.generate()
 
+  //parse off the ipfs:// from the uri
+  uri = uri.substring(7);
   const METADATA_URI = "https://gateway.pinata.cloud/ipfs/" + uri;
+  console.log(`The metadata uri I've generated is: ${METADATA_URI}`);
 
   /*
   const METADATA = {
@@ -90,9 +89,49 @@ async function postImpl(account: PublicKey, uri : string): Promise<PostResponse>
           // Note: Don't set 'Content-Type' here; it will be set automatically with the correct boundary
       },
   });
-  */
+*/  
 
-  console.log(`The metadata uri I've generated is: ${METADATA_URI}`);
+  const compressedNFTMetadata: MetadataArgs = {
+    name: 'Minty NFT',
+    symbol: 'MINTY',
+    uri: METADATA_URI,
+    creators: null,
+    editionNonce: 0,
+    uses: null,
+    collection: null,
+    primarySaleHappened: false,
+    sellerFeeBasisPoints: 0,
+    isMutable: false,
+    tokenProgramVersion: TokenProgramVersion.Original,
+    tokenStandard: TokenStandard.NonFungible
+  };
+
+    // derive a PDA (owned by Bubblegum) to act as the signer of the compressed minting
+  const [bubblegumSigner, _bump2] = PublicKey.findProgramAddressSync(
+    // `collection_cpi` is a custom prefix required by the Bubblegum program
+    [Buffer.from("collection_cpi", "utf8")],
+    BUBBLEGUM_PROGRAM_ID,
+  );
+
+
+  /*
+  const compressedMintIx = createMintToCollectionV1Instruction(
+    {
+      payer: shopKeypair.publicKey,
+      merkleTree: 'GYs6A4hRZnDh9abpstWoh5NpqUYykGkfhoyeDnHE4FrL',
+      treeAuthority: '7eJBzemFDwhD1nr5yukX2kmae88FqAgcCLAnE9jgnGAG',
+
+      
+    },
+    {
+      metadataArgs: Object.assign(compressedNFTMetadata,{
+        collection: { key: collectionMint }
+      }),
+    }
+  );
+
+  */
+ 
   // Create a transaction builder to create the NFT
   const transactionBuilder = await nfts.builders().create({
     uri: METADATA_URI, // use our metadata
